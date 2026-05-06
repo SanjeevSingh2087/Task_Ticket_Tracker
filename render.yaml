@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: task-ticket-tracker
+    env: python
+    region: oregon
+    branch: master
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    runtime: python-3.12.18
