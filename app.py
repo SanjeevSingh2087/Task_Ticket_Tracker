@@ -181,8 +181,24 @@ def update_task(ticket_no):
     save_row_to_excel(data, ticket_no=ticket_no)
     return jsonify({"success": True})
 
+@app.route("/api/verify-delete-code", methods=["POST"])
+def verify_delete_code():
+    data = request.json
+    code = data.get("code", "").strip()
+    DELETE_CODE = "1947"
+    is_valid = code == DELETE_CODE
+    return jsonify({"valid": is_valid})
+
 @app.route("/api/tasks/<ticket_no>", methods=["DELETE"])
 def delete_task(ticket_no):
+    data = request.json or {}
+    code = data.get("code", "").strip()
+    DELETE_CODE = "1947"
+    
+    # Verify code before allowing deletion
+    if code != DELETE_CODE:
+        return jsonify({"success": False, "error": "Invalid code. Task cannot be deleted."}), 403
+    
     wb = openpyxl.load_workbook(EXCEL_PATH)
     ws = wb.active
     for row in ws.iter_rows(min_row=2):
@@ -220,9 +236,14 @@ def download_filtered():
         filtered = filtered[filtered["Priority"].str.contains(priority_filter, case=False, na=False)]
         
     if search_filter:
-        search_lower = search_filter.lower()
-        mask = filtered.apply(lambda row: row.astype(str).str.lower().str.contains(search_lower).any(), axis=1)
-        filtered = filtered[mask]
+        # Advanced search: support #ticketnumber syntax
+        if search_filter.startswith('#'):
+            ticket_num = search_filter[1:].strip()
+            filtered = filtered[filtered['Ticket No'].astype(str).str.strip() == ticket_num]
+        else:
+            search_lower = search_filter.lower()
+            mask = filtered.apply(lambda row: row.astype(str).str.lower().str.contains(search_lower).any(), axis=1)
+            filtered = filtered[mask]
 
     # Style output
     wb = openpyxl.Workbook()
